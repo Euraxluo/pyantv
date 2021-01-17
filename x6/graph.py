@@ -1,40 +1,32 @@
 # coding:utf8
 
 import warnings
-
+import json
+import os
+from jinja2 import Template, FileSystemLoader, Environment
+from typing import Any, Optional, Sequence, Tuple, Union, AnyStr
+Numeric = Union[int, float]
 from base.base import MacroElement, Figure, Element, JavascriptLink, CssLink
-from base.base_object import *
+from base.base_object import BasicOpts, BackgroundOptions, GridOptions
+from base.helper import _parse_size,parse_options,validate_location
 
-from base.utils import parse_options, validate_location
-from base.helper import _parse_size
-from jinja2 import Template, PackageLoader, Environment
+ENV = Environment(
+    loader=FileSystemLoader(
+        os.path.join(
+            os.path.abspath(os.path.dirname(__file__)), "templates"
+        )
+    ),
+)
+    
 
-ENV = Environment(loader=PackageLoader('x6', 'templates'))
+
 _default_js = [
-    ('leaflet',
-     'https://cdn.jsdelivr.net/npm/leaflet@1.5.1/dist/leaflet.js'),
-    ('jquery',
-     'https://code.jquery.com/jquery-1.12.4.min.js'),
-    ('bootstrap',
-     'https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js'),
-    ('awesome_markers',
-     'https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js'),  # noqa
+    ('x6','https://cdn.jsdelivr.net/npm/@antv/x6/dist/x6.js'),
 ]
 
 _default_css = [
     ('leaflet_css',
      'https://cdn.jsdelivr.net/npm/leaflet@1.5.1/dist/leaflet.css'),
-    ('bootstrap_css',
-     'https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css'),
-    ('bootstrap_theme_css',
-     'https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css'),  # noqa
-    ('awesome_markers_font_css',
-     'https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css'),  # noqa
-    ('awesome_markers_css',
-     'https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css'),  # noqa
-    ('awesome_rotate_css',
-     'https://rawcdn.githack.com/python-visualization/folium/master/folium/templates/leaflet.awesome.rotate.css'),
-    # noqa
 ]
 
 
@@ -55,52 +47,32 @@ class GlobalSwitches(Element):
 
 class Graph(MacroElement, BasicOpts):
     _template = Template(u"""
-        {% macro header(this, kwargs) %}
-            <meta name="viewport" content="width=device-width,
-                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-            <style>
-                #{{ this.get_name() }} {
-                    position: {{this.position}};
-                    width: {{this.width[0]}}{{this.width[1]}};
-                    height: {{this.height[0]}}{{this.height[1]}};
-                    left: {{this.left[0]}}{{this.left[1]}};
-                    top: {{this.top[0]}}{{this.top[1]}};
-                }
-            </style>
-        {% endmacro %}
-
-        {% macro html(this, kwargs) %}
-            <div class="folium-map" id={{ this.get_name()|tojson }} ></div>
-        {% endmacro %}
-
-        {% macro script(this, kwargs) %}
-            var {{ this.get_name() }} = L.map(
-                {{ this.get_name()|tojson }},
-                {
-                    center: {{ this.location|tojson }},
-                    crs: L.CRS.{{ this.crs }},
-                    {%- for key, value in this.options.items() %}
-                    {{ key }}: {{ value|tojson }},
-                    {%- endfor %}
-                }
-            );
-
-            {%- if this.control_scale %}
-            L.control.scale().addTo({{ this.get_name() }});
-            {%- endif %}
-
-            {% if this.objects_to_stay_in_front %}
-            function objects_in_front() {
-                {%- for obj in this.objects_to_stay_in_front %}
-                    {{ obj.get_name() }}.bringToFront();
+    {% macro header(this, kwargs) %}
+        <meta name="viewport" content="width=device-width,
+            initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <style>
+            #{{ this.get_name() }} {
+                width: {{this.width}};
+                height: {{this.height}};
+            }
+        </style>
+    {% endmacro %}
+    
+    {% macro html(this, kwargs) %}
+        <div class="{{ this.get_name() }}" id={{ this.get_name()|tojson }} ></div>
+    {% endmacro %}
+        
+    {% macro script(this, kwargs) %}
+        const {{ this.get_name() }} = new X6.Graph({
+                container: document.getElementById({{ this.get_name()|tojson }}),
+                {%- for key, value in this.options.items() %}
+                {{ key }}: {{ value|tojson }},
                 {%- endfor %}
-            };
-            {{ this.get_name() }}.on("overlayadd", objects_in_front);
-            $(document).ready(objects_in_front);
-            {%- endif %}
-
-        {% endmacro %}
-        """)
+                }
+        );
+        {{this.get_name()}}.fromJSON({{ graph_data }});
+    {% endmacro %}
+    """)
     def drawBackground(
             self,background: Union[BackgroundOptions, dict, None] = BackgroundOptions()
            ):
@@ -116,9 +88,7 @@ class Graph(MacroElement, BasicOpts):
     def clearBackground(self):
         self._background = None
 
-    def drawGrid(
-            self, grid: Union[GridOptions, dict, None] = GridOptions()
-    ):
+    def drawGrid(self, grid: Union[GridOptions, dict, None] = GridOptions()):
         if isinstance(grid, dict):
             self._grid.update(**GridOptions(**grid).get())
         elif isinstance(grid, GridOptions):
@@ -153,67 +123,31 @@ class Graph(MacroElement, BasicOpts):
             **kwargs
     ):
         super(Graph, self).__init__()
+        self._name = 'Graph'
+        self._env = ENV
+        Figure().add_child(self)
         self._background = background
         self._grid = grid
         self.width = _parse_size(width)
         self.height = _parse_size(height)
-
+        self.container = container
         self.options = parse_options(
-            container=container,
             width=self.width,
             height=self.height,
             background=self._background.get(),
             grid=self._grid.get(),
             **kwargs
         )
-        print(self.options)
 
-
-        self.options: dict = {
-            "container": container,
-            "width": self.width,
-            "height": self.height,
-            "background": self._background.get(),
-            "grid": self._grid.get(),
-        }
-
-
-        self._name = 'Graph'
-        self._env = ENV
-        Figure().add_child(self)
-
-
-
-        # max_bounds_array = [[min_lat, min_lon], [max_lat, max_lon]] \
-        #     if max_bounds else None
-        #
-        # self.crs = crs
-        # self.control_scale = control_scale
-        #
-
-        #
-        # self.global_switches = GlobalSwitches(
-        #     no_touch,
-        #     disable_3d
-        # )
-        #
-        # self.objects_to_stay_in_front = []
-        #
-        # if tiles:
-        #     pass
-        # tile_layer = TileLayer(tiles=tiles, attr=attr,
-        #                        min_zoom=min_zoom, max_zoom=max_zoom)
-        # self.add_child(tile_layer, name=tile_layer.tile_name)
-
-    # def _repr_html_(self, **kwargs):
-    #     """Displays the HTML Map in a Jupyter notebook."""
-    #     if self._parent is None:
-    #         self.add_to(Figure())
-    #         out = self._parent._repr_html_(**kwargs)
-    #         self._parent = None
-    #     else:
-    #         out = self._parent._repr_html_(**kwargs)
-    #     return out
+    def _repr_html_(self, **kwargs):
+        """Displays the HTML Map in a Jupyter notebook."""
+        if self._parent is None:
+            self.add_to(Figure())
+            out = self._parent._repr_html_(**kwargs)
+            self._parent = None
+        else:
+            out = self._parent._repr_html_(**kwargs)
+        return out
     #
     # def _to_png(self, delay=3):
     #     """Export the HTML to byte representation of a PNG image.
@@ -254,43 +188,39 @@ class Graph(MacroElement, BasicOpts):
     #         return None
     #     return self._to_png()
     #
-    # def render(self, **kwargs):
-    #     """Renders the HTML representation of the element."""
-    #     figure = self.get_root()
-    #     assert isinstance(figure, Figure), ('You cannot render this Element '
-    #                                         'if it is not in a Figure.')
-    #
-    #     # Set global switches
-    #     figure.header.add_child(self.global_switches, name='global_switches')
-    #
-    #     # Import Javascripts
-    #     for name, url in _default_js:
-    #         figure.header.add_child(JavascriptLink(url), name=name)
-    #
-    #     # Import Css
-    #     for name, url in _default_css:
-    #         figure.header.add_child(CssLink(url), name=name)
-    #
-    #     figure.header.add_child(Element(
-    #         '<style>html, body {'
-    #         'width: 100%;'
-    #         'height: 100%;'
-    #         'margin: 0;'
-    #         'padding: 0;'
-    #         '}'
-    #         '</style>'), name='css_style')
-    #
-    #     figure.header.add_child(Element(
-    #         '<style>#map {'
-    #         'position:absolute;'
-    #         'top:0;'
-    #         'bottom:0;'
-    #         'right:0;'
-    #         'left:0;'
-    #         '}'
-    #         '</style>'), name='map_style')
-    #
-    #     super(Graph, self).render(**kwargs)
+    def render(self, **kwargs):
+        """Renders the HTML representation of the element."""
+        figure = self.get_root()
+        assert isinstance(figure, Figure), ('You cannot render this Element '
+                                            'if it is not in a Figure.')
+        # Import Javascripts
+        for name, url in _default_js:
+            figure.header.add_child(JavascriptLink(url), name=name)
+        # Import Css
+        for name, url in _default_css:
+            figure.header.add_child(CssLink(url), name=name)
+
+        figure.header.add_child(Element(
+            '<style>html, body {'
+            'width: 100%;'
+            'height: 100%;'
+            'margin: 0;'
+            'padding: 0;'
+            '}'
+            '</style>'), name='css_style')
+
+        figure.header.add_child(Element(
+            '<style>#graph {'
+            'position:absolute;'
+            'top:0;'
+            'bottom:0;'
+            'right:0;'
+            'left:0;'
+            '}'
+            '</style>'), name='graph_style')
+
+        super(Graph, self).render(**kwargs)
+
     #
     # def fit_bounds(self, bounds, padding_top_left=None,
     #                padding_bottom_right=None, padding=None, max_zoom=None):
@@ -357,24 +287,84 @@ class Graph(MacroElement, BasicOpts):
 
 
 if __name__ == '__main__':
+    # g = Graph()
+    # print(g.get())
+    # g.drawBackground(background=BackgroundOptions(color='yellow'))
+    # print(g.get())
+    #
+    # g.drawGrid(grid=GridOptions(color='yellow',visible=False))
+    # print(g.get())
+    #
+    # g.drawGrid({'color':'red','visible':True})
+    # print(g.get())
+    #
+    # g.hideGrid()
+    # print(g.get())
+    #
+    # g.showGrid()
+    # print(g.get())
+    #
+    # g.setGridSize(gridSize=11)
+    # print(g.get())
+    # print(g.getGridSize())
+    data = """
+    {
+        "nodes": [
+            {
+                "id": "node1",
+                "x": 40,
+                "y": 40,
+                "width": 100,
+                "height": 40,
+                "attrs": {
+                    "body": {
+                        "fill": "#2ECC71",
+                        "stroke": "#000",
+                        "strokeDasharray": "10,2"
+                    },
+                    "label": {
+                        "text": "Hello",
+                        "fill": "#333",
+                        "fontSize": 13
+                    }
+                }
+            },
+            {
+                "id": "node2",
+                "x": 180,
+                "y": 240,
+                "width": 100,
+                "height": 40,
+                "attrs": {
+                    "body": {
+                        "fill": "#F39C12",
+                        "stroke": "#000",
+                        "rx": 16,
+                        "ry": 16
+                    },
+                    "label": {
+                        "text": "World",
+                        "fill": "#333",
+                        "fontSize": 18,
+                        "fontWeight": "bold",
+                        "fontVariant": "small-caps"
+                    }
+                }
+            }
+        ],
+        "edges": [
+            {
+                "source": "node1",
+                "target": "node2",
+                "shape": "edge",
+                "attrs": {
+                    "line": {
+                        "stroke": "orange"
+                    }
+                }
+            }
+        ]
+    }
+    """
     g = Graph()
-    print(g.get())
-    g.drawBackground(background=BackgroundOptions(color='yellow'))
-    print(g.get())
-
-    g.drawGrid(grid=GridOptions(color='yellow',visible=False))
-    print(g.get())
-
-    g.drawGrid({'color':'red','visible':True})
-    print(g.get())
-
-    g.hideGrid()
-    print(g.get())
-
-    g.showGrid()
-    print(g.get())
-
-    g.setGridSize(gridSize=11)
-    print(g.get())
-    print(g.getGridSize())
-    # g.save("../test/g.html")
+    g.save("../test/g.html",graph_data=data)

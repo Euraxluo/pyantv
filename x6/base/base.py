@@ -8,17 +8,21 @@ A generic class for creating Elements.
 
 import base64
 import json
+import os
 import warnings
 from collections import OrderedDict
 from urllib.request import urlopen
 from uuid import uuid4
 
-from jinja2 import Environment, PackageLoader, Template
+from jinja2 import Environment, FileSystemLoader, Template
 
-from utils import _camelify,none_max, none_min
-from helper import *
+from helper import _parse_size,_camelify,none_max, none_min
 
-ENV = Environment(loader=PackageLoader('x6', 'templates'))
+ENV = Environment(loader=FileSystemLoader(
+        os.path.join(
+            os.path.abspath(os.path.dirname(__file__)), "templates"
+        )
+    ),)
 
 
 class Element(object):
@@ -146,9 +150,11 @@ class Element(object):
 
     def render(self, **kwargs):
         """Renders the HTML representation of the element."""
-        kwargs['kwargs'] = kwargs
+
         kwargs['this'] = self
-        return self._template.render(**kwargs)
+        kwargs['kwargs'] = kwargs
+        print(kwargs.keys())
+        return self._template.render(kwargs)
 
     def save(self, outfile, close_file=True, **kwargs):
         """Saves an Element into a file.
@@ -719,30 +725,31 @@ class HtmlElement(Element):
 
 if __name__ == '__main__':
     e = Element(template="""<div>{{ name }}</div>""")
-    e.save("test/e.html",name="element")
+    e.save("../../test/e.html",name="element")
+    exit()
 
     f = Figure(title="Title")
-    f.save("test/f.html")
+    f.save("../../test/f.html")
 
     m = MacroElement()
     f = Figure(title="Title")
     f.add_child(m)
-    f.save("test/f.html")
-    m.save("test/m.html")
+    f.save("../../test/f.html")
+    m.save("../../test/m.html")
 
     l = JavascriptLink(url="https://cdn.jsdelivr.net/npm/@antv/x6/dist/x6.js")
-    l.save("test/j.html")
+    l.save("../../test/j.html")
 
     c = CssLink(url="https://cdn.jsdelivr.net/npm/@antv/x6/dist/x6.js")
-    c.save("test/c.html")
+    c.save("../../test/c.html")
 
     d = DataLink(name='graph',url="https://cdn.jsdelivr.net/gh/apache/echarts-website@asf-site/examples/data/asset/data/hangzhou-tracks.json")
     print(d.to_json())
     print(d.to_dict())
-    d.save("test/d.html")
+    d.save("../../test/d.html")
 
     i = IFrame("<h1>1</h1>")
-    i.save("test/i.html")
+    i.save("../../test/i.html")
 
     h = HtmlElement("<h1>1</h1>")
-    h.save("test/h.html")
+    h.save("../../test/h.html")

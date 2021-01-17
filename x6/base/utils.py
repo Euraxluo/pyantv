@@ -13,7 +13,7 @@ import os
 import struct
 import zlib
 
-from jinja2 import Environment, PackageLoader
+# from jinja2 import Environment, PackageLoader
 
 try:
     import pandas as pd
@@ -435,7 +435,7 @@ import uuid
 import collections
 from urllib.parse import urlparse, uses_netloc, uses_params, uses_relative
 
-import numpy as np
+# import numpy as np
 try:
     import pandas as pd
 except ImportError:
