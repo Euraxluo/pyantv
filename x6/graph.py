@@ -7,7 +7,7 @@ from jinja2 import Template, FileSystemLoader, Environment
 from typing import Any, Optional, Sequence, Tuple, Union, AnyStr
 Numeric = Union[int, float]
 from base.base import MacroElement, Figure, Element, JavascriptLink, CssLink
-from base.base_object import BasicOpts, BackgroundOptions, GridOptions
+from base.options import BasicOpts, BackgroundOptions, GridOptions
 from base.helper import _parse_size,parse_options,validate_location
 
 ENV = Environment(
@@ -147,6 +147,18 @@ class Graph(MacroElement, BasicOpts):
             preventDefaultBlankAction: bool = False,
             **kwargs
     ):
+        # self.options = parse_options(
+        #     width=self.width,
+        #     height=self.height,
+        #     background=self._background.get(),
+        #     grid=self._grid.get(),
+        #     **kwargs
+        # )
+        self.background = background
+        self.grid = grid
+        self.setOpt(locals())
+        print(self.getOpt())
+        exit()
         super(Graph, self).__init__()
         self._name = 'Graph'
         self._env = ENV
@@ -156,13 +168,7 @@ class Graph(MacroElement, BasicOpts):
         self.width = _parse_size(width)
         self.height = _parse_size(height)
         self.container = container
-        self.options = parse_options(
-            width=self.width,
-            height=self.height,
-            background=self._background.get(),
-            grid=self._grid.get(),
-            **kwargs
-        )
+
 
     def _repr_html_(self, **kwargs):
         """Displays the HTML Map in a Jupyter notebook."""

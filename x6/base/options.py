@@ -22,10 +22,9 @@ class BasicOptsMetaClass(type):
             """
             Some keyword and python conflict, you can use the beginning of the underline to solve, but we will warn
             """
-
             if k[0] == '_':
                 warnings.warn(f"argument best not to start with an underline,because we will remove the underline")
-                k=k[1:]
+                k = k[1:]
             if v.__class__ in BasicOpts.__subclasses__():
                 obj.__dict__['options'][k] = v.getOpt()
                 continue
@@ -37,27 +36,42 @@ class BasicOptsMetaClass(type):
 class BasicOpts(object, metaclass=BasicOptsMetaClass):
     __slots__: ("options",)
 
-    def updOpt(self, **kwargs):
-        self.options.update(kwargs)
-
     def getOpt(self, key: str = None) -> Any:
         if not key:
             return self.options
         return self.options.get(key)
 
-    def setOpt(self, kwargs):
+    def setOpt(self, *args, **kwargs):
         """
         这里会进行opt类参数默认值的填充
+        :param args: 必须传入当前环境的locals()
         :param kwargs:
         :return:
         """
-        for k, v in kwargs.items():
-            if self == v or k == 'kwargs':
-                continue
-            if v.__class__ in BasicOpts.__subclasses__():
-                self.options[k] = v.getOpt()
-                continue
-            self.options[k] = v
+        if len(args) == 1:
+            for k, v in args[0].items():
+                if self == v or k == 'kwargs':
+                    continue
+                if k[0] == '_':
+                    warnings.warn(
+                        f"argument best not to start with an underline,because we will remove the underline")
+                    k = k[1:]
+                if v.__class__ in BasicOpts.__subclasses__():
+                    self.options[k] = v.getOpt()
+                    continue
+                self.options[k] = v
+        elif kwargs:
+            for k, v in kwargs.items():
+                """
+                Some keyword and python conflict, you can use the beginning of the underline to solve, but we will warn
+                """
+                if k[0] == '_':
+                    warnings.warn(f"argument best not to start with an underline,because we will remove the underline")
+                    k = k[1:]
+                if v.__class__ in BasicOpts.__subclasses__():
+                    self.options.get(k).update(v.getOpt())
+                    continue
+                self.options.update(**{k: v})
 
 
 class SnaplineOptions(BasicOpts):
@@ -112,5 +126,14 @@ if __name__ == '__main__':
     x = GridOptions()
     print(x.getOpt())
 
+    x.setOpt(arg=Args(thickness=2))
+    print(x.getOpt())
+
     y = SnaplineOptions(className='1', _sync=x)
     print(y.getOpt())
+
+    y.setOpt(className='2')
+    print(y.getOpt())
+
+
+
