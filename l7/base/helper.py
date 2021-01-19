@@ -2,20 +2,19 @@
 import math
 import pandas as pd
 import numpy as np
-def parse_size(value):
+def _parse_size(value):
     try:
-        if isinstance(value, int) or isinstance(value, float):
-            value_type = 'px'
-            value = float(value)
+        if isinstance(value, (int, float)):
             assert value > 0
+            value = str(value) + 'px'
         else:
-            value_type = '%'
             value = float(value.strip('%'))
             assert 0 <= value <= 100
+            value = str(value) + '%'
     except Exception:
         msg = 'Cannot parse value {!r} as {!r}'.format
-        raise ValueError(msg(value, value_type))
-    return value, value_type
+        raise ValueError(msg(value))
+    return value
 
 def camelize(key):
     """Convert a python_style_variable_name to lowerCamelCase.

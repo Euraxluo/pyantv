@@ -1,6 +1,5 @@
 # coding:utf8
 from typing import Any, Optional, Sequence, Tuple, Union, AnyStr, Mapping
-from enum import Enum
 import warnings
 
 Numeric = Union[int, float]
@@ -50,7 +49,7 @@ class BasicOpts(object, metaclass=BasicOptsMetaClass):
         """
         if len(args) == 1:
             for k, v in args[0].items():
-                if self == v or k == 'kwargs':
+                if self == v or k == 'kwargs' or self.__class__ == v:
                     continue
                 if k[0] == '_':
                     warnings.warn(
@@ -76,7 +75,8 @@ class BasicOpts(object, metaclass=BasicOptsMetaClass):
 
 class SnaplineOptions(BasicOpts):
     def __init__(self,
-                 className: Optional[str] = "undefined",
+                 enable:Optional[bool]=False,
+                 className: Optional[AnyStr] = "snapline",
                  tolerance: Optional[Numeric] = 10,
                  sharp: Optional[bool] = False,
                  resizing: Optional[bool] = False,
@@ -88,11 +88,11 @@ class SnaplineOptions(BasicOpts):
 
 class BackgroundOptions(BasicOpts):
     def __init__(self,
-                 color: Optional[str] = "#fffbe6",
-                 image: Optional[str] = "undefined",
-                 position: Optional[str] = "center",
-                 size: Optional[str] = "auto auto",
-                 repeat: Optional[str] = "no-repeat",
+                 color: Optional[AnyStr] = "#fffbe6",
+                 image: Optional[AnyStr] = "undefined",
+                 position: Optional[AnyStr] = "center",
+                 size: Optional[AnyStr] = "auto auto",
+                 repeat: Optional[AnyStr] = "no-repeat",
                  opacity: Optional[Numeric] = 1,
                  quality: Optional[Numeric] = 1,
                  angle: Optional[Numeric] = 20,
@@ -108,10 +108,10 @@ class Args(BasicOpts):
 
 class GridOptions(BasicOpts):
     def __init__(self,
-                 type: Optional[str] = "dot",
+                 type: Optional[AnyStr] = "dot",
                  size: Optional[Numeric] = 10,
                  visible: Optional[bool] = True,
-                 color: Optional[str] = "#AAAAAA",
+                 color: Optional[AnyStr] = "#AAAAAA",
                  thickness: Optional[Numeric] = 1.0,
                  **kwargs
                  ):

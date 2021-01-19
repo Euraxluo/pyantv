@@ -2,7 +2,20 @@
 import math
 import pandas as pd
 import numpy as np
-def parse_size(value):
+# def _parse_size(value):
+#     try:
+#         if isinstance(value, (int, float)):
+#             assert value > 0
+#             value = str(value) + 'px'
+#         else:
+#             value = float(value.strip('%'))
+#             assert 0 <= value <= 100
+#             value = str(value) + '%'
+#     except Exception:
+#         msg = 'Cannot parse value {!r} as {!r}'.format
+#         raise ValueError(msg(value))
+#     return value
+def _parse_size(value):
     try:
         if isinstance(value, int) or isinstance(value, float):
             value_type = 'px'

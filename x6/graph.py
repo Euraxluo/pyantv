@@ -8,8 +8,8 @@ from typing import Any, Optional, Sequence, Tuple, Union, AnyStr
 
 Numeric = Union[int, float]
 from base.base import MacroElement, Figure, Element, JavascriptLink, CssLink
-from base.options import BasicOpts, BackgroundOptions, GridOptions,SnaplineOptions
-from base.helper import _parse_size, parse_options, validate_location
+from base.options import BasicOpts, BackgroundOptions, GridOptions, SnaplineOptions
+from base.helper import parse_size, parse_options, validate_location
 
 ENV = Environment(
     loader=FileSystemLoader(
@@ -23,25 +23,7 @@ _default_js = [
     ('x6', 'https://cdn.jsdelivr.net/npm/@antv/x6/dist/x6.js'),
 ]
 
-_default_css = [
-    ('leaflet_css',
-     'https://cdn.jsdelivr.net/npm/leaflet@1.5.1/dist/leaflet.css'),
-]
-
-
-class GlobalSwitches(Element):
-    _template = Template("""
-        <script>
-            L_NO_TOUCH = {{ this.no_touch |tojson}};
-            L_DISABLE_3D = {{ this.disable_3d|tojson }};
-        </script>
-    """)
-
-    def __init__(self, no_touch=False, disable_3d=False):
-        super(GlobalSwitches, self).__init__()
-        self._name = 'GlobalSwitches'
-        self.no_touch = no_touch
-        self.disable_3d = disable_3d
+_default_css = []
 
 
 class Graph(MacroElement, BasicOpts):
@@ -51,8 +33,8 @@ class Graph(MacroElement, BasicOpts):
             initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <style>
             #{{ this.get_name() }} {
-                width: {{this.width}};
-                height: {{this.height}};
+                width: {{this.width[0]}}{{this.width[1]}};
+                height: {{this.height[0]}}{{this.height[1]}};
             }
         </style>
     {% endmacro %}
@@ -73,9 +55,9 @@ class Graph(MacroElement, BasicOpts):
     {% endmacro %}
     """)
 
-    def drawBackground(
-            self, background: Union[BackgroundOptions, dict, None] = BackgroundOptions()
-    ):
+    """Background 相关"""
+
+    def drawBackground(self, background: Union[BackgroundOptions, dict, None] = BackgroundOptions()):
         if isinstance(background, dict):
             self.background.setOpt(**BackgroundOptions(**background).getOpt())
         elif isinstance(background, BackgroundOptions):
@@ -86,11 +68,13 @@ class Graph(MacroElement, BasicOpts):
         self.options['background'] = self.background.getOpt()
 
     def clearBackground(self):
-        self.background = None
+        self.options['background'] = False
 
-    def drawGrid(self, grid: Union[GridOptions, dict, None] = GridOptions()):
+    """Grid相关"""
+
+    def drawGrid(self, grid: Union[GridOptions, dict, bool] = GridOptions()):
         if isinstance(grid, dict):
-            self._grid.setOpt(**GridOptions(**grid).getOpt())
+            self.grid.setOpt(**GridOptions(**grid).getOpt())
         elif isinstance(grid, GridOptions):
             self.grid.setOpt(**grid.getOpt())
         self.updateGrid()
@@ -110,79 +94,92 @@ class Graph(MacroElement, BasicOpts):
     def hideGrid(self):
         self.grid.setOpt(visible=False)
 
-    def clearBackground(self):
-        self.grid = None
+    """Snapline"""
+
+    def isSnaplineEnabled(self):
+        return self.snapline.getOpt('enable')
+
+    def enableSnapline(self):
+        self.options['snapline'] = True
+
+    def disableSnapline(self):
+        self.snapline.setOpt(enable=False)
+        self.updateSnapline()
+
+    def toggleSnapline(self, enable: Optional[bool] = None):
+        if enable == None:
+            self.snapline.setOpt(enable=not self.snapline.getOpt('enable'))
+        else:
+            self.snapline.setOpt(enable=enable)
+        self.updateSnapline()
+
+    def updateSnapline(self, snapline: Union[SnaplineOptions, dict, bool, None] = None):
+        if isinstance(snapline, dict):
+            self.snapline.setOpt(**SnaplineOptions(**snapline).getOpt())
+        if isinstance(snapline, bool):
+            self.options['snapline'] = snapline
+            return
+        elif isinstance(snapline, SnaplineOptions):
+            self.snapline.setOpt(**snapline.getOpt())
+
+        self.options['snapline'] = self.snapline.getOpt()
 
     def __init__(
             self,
-            container: Optional[str] = "container",
             width: Union[Numeric, str] = 800,
             height: Union[Numeric, str] = 800,
             autoResize: bool = True,
-            grid: Union[GridOptions, dict, None] = GridOptions(),
+            grid: Union[GridOptions, dict, bool] = GridOptions(),
             background: Union[BackgroundOptions, dict, bool] = BackgroundOptions(),
-            snapline: Union[SnaplineOptions, dict, bool] = False,
-            scroller: Union[BackgroundOptions, dict, bool] = False,
-            minimap: Union[BackgroundOptions, dict, bool] = False,
-            history: Union[BackgroundOptions, dict, bool] = False,
-            clipboard: Union[BackgroundOptions, dict, bool] = False,
-            keyboard: Union[BackgroundOptions, dict, bool] = False,
-            mousewheel: Union[BackgroundOptions, dict, bool] = False,
-            selecting: Union[BackgroundOptions, dict, bool] = False,
-            rotating: Union[BackgroundOptions, dict, bool] = False,
-            resizing: Union[BackgroundOptions, dict, bool] = False,
-            translating: Union[BackgroundOptions, dict, bool] = False,
-            transforming: Union[BackgroundOptions, dict, bool] = False,
-            embedding: Union[BackgroundOptions, dict, bool] = False,
-            connecting: Union[BackgroundOptions, dict, bool] = False,
-            highlighting: Union[BackgroundOptions, dict, bool] = False,
-            interacting: Union[BackgroundOptions, dict] = {'edgeLabelMovable': False},
-            sorting: Union['none', 'approx', 'exact'] = 'exact',
-            _async: bool = False,
-            frozen: bool = False,
-            magnetThreshold: Union[Numeric, 'onleave'] = 0,
-            moveThreshold: Numeric = 0,
-            clickThreshold: Numeric = 0,
-            preventDefaultContextMenu: bool = False,
-            preventDefaultBlankAction: bool = False,
+            snapline: Union[SnaplineOptions, dict, bool] = SnaplineOptions(),
+            # scroller: Union[BackgroundOptions, dict, bool] = True,
+            # # minimap: Union[BackgroundOptions, dict, bool] = False,
+            # history: Union[BackgroundOptions, dict, bool] = True,
+            # clipboard: Union[BackgroundOptions, dict, bool] = True,
+            # keyboard: Union[BackgroundOptions, dict, bool] = True,
+            # mousewheel: Union[BackgroundOptions, dict, bool] = True,
+            # selecting: Union[BackgroundOptions, dict, bool] = True,
+            # rotating: Union[BackgroundOptions, dict, bool] = True,
+            # resizing: Union[BackgroundOptions, dict, bool] = True,
+            # # translating: Union[BackgroundOptions, dict, None] = None,
+            # # transforming: Union[BackgroundOptions, dict, None] = None,
+            # embedding: Union[BackgroundOptions, dict, bool] = False,
+            # # connecting: Union[BackgroundOptions, dict, None] = None,
+            # # highlighting: Union[BackgroundOptions, dict, None] = None,
+            # interacting: Union[BackgroundOptions, dict] = {'edgeLabelMovable': False},
+            # sorting: Union['none', 'approx', 'exact'] = 'exact',
+            # _async: Options[bool] = False,
+            # frozen: Options[bool] = False,
+            # magnetThreshold: Union[Numeric, 'onleave'] = 0,
+            # moveThreshold: Numeric = 0,
+            # clickThreshold: Numeric = 0,
+            # preventDefaultContextMenu: Options[bool] = True,
+            # preventDefaultBlankAction: Options[bool] = True,
             **kwargs
     ):
-        self.background = background
         self.grid = grid
+        self.background = background
+        self.snapline = snapline
         self.setOpt(locals())
+        self.width = parse_size(width)
+        self.height = parse_size(height)
         super(Graph, self).__init__()
-        self._name = 'Graph'
+        self._name = self.__class__.__name__
         self._env = ENV
         Figure().add_child(self)
-        # self._background = background
-        # self._grid = grid
-        # self.width = _parse_size(width)
-        # self.height = _parse_size(height)
-        self.container = container
 
-    def _repr_html_(self, **kwargs):
-        """Displays the HTML Map in a Jupyter notebook."""
-        if self._parent is None:
-            self.add_to(Figure())
-            out = self._parent._repr_html_(**kwargs)
-            self._parent = None
-        else:
-            out = self._parent._repr_html_(**kwargs)
-        return out
+    # def _repr_html_(self, **kwargs):
+    #     """Displays the HTML Map in a Jupyter notebook."""
+    #     if self._parent is None:
+    #         self.add_to(Figure())
+    #         out = self._parent._repr_html_(**kwargs)
+    #         self._parent = None
+    #     else:
+    #         out = self._parent._repr_html_(**kwargs)
+    #     return out
 
     #
     # def _to_png(self, delay=3):
-    #     """Export the HTML to byte representation of a PNG image.
-    #
-    #     Uses selenium to render the HTML and record a PNG. You may need to
-    #     adjust the `delay` time keyword argument if maps render without data or tiles.
-    #
-    #     Examples
-    #     --------
-    #     >>> m._to_png()
-    #     >>> m._to_png(time=10)  # Wait 10 seconds between render and snapshot.
-    #
-    #     """
     #     if self._png_image is None:
     #         # from selenium import webdriver
     #         #
@@ -243,69 +240,6 @@ class Graph(MacroElement, BasicOpts):
 
         super(Graph, self).render(**kwargs)
 
-    #
-    # def fit_bounds(self, bounds, padding_top_left=None,
-    #                padding_bottom_right=None, padding=None, max_zoom=None):
-    #     """Fit the map to contain a bounding box with the
-    #     maximum zoom level possible.
-    #
-    #     Parameters
-    #     ----------
-    #     bounds: list of (latitude, longitude) points
-    #         Bounding box specified as two points [southwest, northeast]
-    #     padding_top_left: (x, y) point, default None
-    #         Padding in the top left corner. Useful if some elements in
-    #         the corner, such as controls, might obscure objects you're zooming
-    #         to.
-    #     padding_bottom_right: (x, y) point, default None
-    #         Padding in the bottom right corner.
-    #     padding: (x, y) point, default None
-    #         Equivalent to setting both top left and bottom right padding to
-    #         the same value.
-    #     max_zoom: int, default None
-    #         Maximum zoom to be used.
-    #
-    #     Examples
-    #     --------
-    #     >>> m.fit_bounds([[52.193636, -2.221575], [52.636878, -1.139759]])
-    #
-    #     """
-    #     pass
-    #     # self.add_child(FitBounds(bounds,
-    #     #                          padding_top_left=padding_top_left,
-    #     #                          padding_bottom_right=padding_bottom_right,
-    #     #                          padding=padding,
-    #     #                          max_zoom=max_zoom,
-    #     #                          )
-    #     #                )
-    #
-    # def choropleth(self, *args, **kwargs):
-    #     """Call the Choropleth class with the same arguments.
-    #
-    #     This method may be deleted after a year from now (Nov 2018).
-    #     """
-    #     warnings.warn(
-    #         'The choropleth  method has been deprecated. Instead use the new '
-    #         'Choropleth class, which has the same arguments. See the example '
-    #         'notebook \'GeoJSON_and_choropleth\' for how to do this.',
-    #         FutureWarning
-    #     )
-    #     from folium.features import Choropleth
-    #     self.add_child(Choropleth(*args, **kwargs))
-    #
-    # def keep_in_front(self, *args):
-    #     """Pass one or multiples object that must stay in front.
-    #
-    #     The ordering matters, the last one is put on top.
-    #
-    #     Parameters
-    #     ----------
-    #     *args :
-    #         Variable length argument list. Any folium object that counts as an
-    #         overlay. For example FeatureGroup or a vector object such as Marker.
-    #     """
-    #     for obj in args:
-    #         self.objects_to_stay_in_front.append(obj)
     def data(self):
         data = """
         {
@@ -371,25 +305,28 @@ class Graph(MacroElement, BasicOpts):
 
 if __name__ == '__main__':
     # g = Graph()
-    # print(g.get())
+    # print(g.getOpt())
     # g.drawBackground(background=BackgroundOptions(color='yellow'))
-    # print(g.get())
+    # print(g.getOpt())
     #
     # g.drawGrid(grid=GridOptions(color='yellow',visible=False))
-    # print(g.get())
+    # print(g.getOpt())
     #
     # g.drawGrid({'color':'red','visible':True})
-    # print(g.get())
+    # print(g.getOpt())
     #
     # g.hideGrid()
-    # print(g.get())
+    # print(g.getOpt())
     #
     # g.showGrid()
-    # print(g.get())
+    # print(g.getOpt())
     #
     # g.setGridSize(gridSize=11)
-    # print(g.get())
+    # print(g.getOpt())
     # print(g.getGridSize())
 
     g = Graph()
+    g.enableSnapline()
+    print(g.getOpt())
+
     g.save("../test/g.html")
