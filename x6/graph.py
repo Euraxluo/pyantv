@@ -5,10 +5,11 @@ import json
 import os
 from jinja2 import Template, FileSystemLoader, Environment
 from typing import Any, Optional, Sequence, Tuple, Union, AnyStr
+
 Numeric = Union[int, float]
 from base.base import MacroElement, Figure, Element, JavascriptLink, CssLink
-from base.options import BasicOpts, BackgroundOptions, GridOptions
-from base.helper import _parse_size,parse_options,validate_location
+from base.options import BasicOpts, BackgroundOptions, GridOptions,SnaplineOptions
+from base.helper import _parse_size, parse_options, validate_location
 
 ENV = Environment(
     loader=FileSystemLoader(
@@ -17,11 +18,9 @@ ENV = Environment(
         )
     ),
 )
-    
-
 
 _default_js = [
-    ('x6','https://cdn.jsdelivr.net/npm/@antv/x6/dist/x6.js'),
+    ('x6', 'https://cdn.jsdelivr.net/npm/@antv/x6/dist/x6.js'),
 ]
 
 _default_css = [
@@ -70,48 +69,49 @@ class Graph(MacroElement, BasicOpts):
                 {%- endfor %}
                 }
         );
-        {{this.get_name()}}.fromJSON({{ graph_data }});
+        {{this.get_name()}}.fromJSON({{ this.data() }});
     {% endmacro %}
     """)
+
     def drawBackground(
-            self,background: Union[BackgroundOptions, dict, None] = BackgroundOptions()
-           ):
-        if isinstance(background,dict):
-            self._background.update(**BackgroundOptions(**background).get())
-        elif isinstance(background,BackgroundOptions):
-            self._background.update(**background.get())
+            self, background: Union[BackgroundOptions, dict, None] = BackgroundOptions()
+    ):
+        if isinstance(background, dict):
+            self.background.setOpt(**BackgroundOptions(**background).getOpt())
+        elif isinstance(background, BackgroundOptions):
+            self.background.setOpt(**background.getOpt())
         self.updateBackground()
 
     def updateBackground(self):
-        self.options['background'] = self._background.get()
+        self.options['background'] = self.background.getOpt()
 
     def clearBackground(self):
-        self._background = None
+        self.background = None
 
     def drawGrid(self, grid: Union[GridOptions, dict, None] = GridOptions()):
         if isinstance(grid, dict):
-            self._grid.update(**GridOptions(**grid).get())
+            self._grid.setOpt(**GridOptions(**grid).getOpt())
         elif isinstance(grid, GridOptions):
-            self._grid.update(**grid.get())
+            self.grid.setOpt(**grid.getOpt())
         self.updateGrid()
 
     def updateGrid(self):
-        self.options['grid'] = self._grid.get()
+        self.options['grid'] = self.grid.getOpt()
 
-    def getGridSize(self)->Optional[Numeric]:
-        return self._grid.get('size')
+    def getGridSize(self) -> Optional[Numeric]:
+        return self.grid.getOpt('size')
 
-    def setGridSize(self,gridSize: Optional[Numeric] = 10):
-        self._grid.update(size=gridSize)
+    def setGridSize(self, gridSize: Optional[Numeric] = 10):
+        self.grid.setOpt(size=gridSize)
 
     def showGrid(self):
-        self._grid.update(visible=True)
+        self.grid.setOpt(visible=True)
 
     def hideGrid(self):
-        self._grid.update(visible=False)
+        self.grid.setOpt(visible=False)
 
     def clearBackground(self):
-        self._grid = None
+        self.grid = None
 
     def __init__(
             self,
@@ -121,54 +121,44 @@ class Graph(MacroElement, BasicOpts):
             autoResize: bool = True,
             grid: Union[GridOptions, dict, None] = GridOptions(),
             background: Union[BackgroundOptions, dict, bool] = BackgroundOptions(),
-            snapline: Union[BackgroundOptions, dict, bool] = False,
+            snapline: Union[SnaplineOptions, dict, bool] = False,
             scroller: Union[BackgroundOptions, dict, bool] = False,
             minimap: Union[BackgroundOptions, dict, bool] = False,
             history: Union[BackgroundOptions, dict, bool] = False,
             clipboard: Union[BackgroundOptions, dict, bool] = False,
             keyboard: Union[BackgroundOptions, dict, bool] = False,
-            mousewheel: Union[BackgroundOptions, dict, bool] =False,
+            mousewheel: Union[BackgroundOptions, dict, bool] = False,
             selecting: Union[BackgroundOptions, dict, bool] = False,
             rotating: Union[BackgroundOptions, dict, bool] = False,
             resizing: Union[BackgroundOptions, dict, bool] = False,
             translating: Union[BackgroundOptions, dict, bool] = False,
             transforming: Union[BackgroundOptions, dict, bool] = False,
             embedding: Union[BackgroundOptions, dict, bool] = False,
-            connecting: Union[BackgroundOptions, dict,bool] = False,
-            highlighting: Union[BackgroundOptions, dict,bool] = False,
-            interacting: Union[BackgroundOptions, dict] = { 'edgeLabelMovable': False },
-            sorting: Union['none' , 'approx' , 'exact'] = 'exact',
-            _async : bool = False,
+            connecting: Union[BackgroundOptions, dict, bool] = False,
+            highlighting: Union[BackgroundOptions, dict, bool] = False,
+            interacting: Union[BackgroundOptions, dict] = {'edgeLabelMovable': False},
+            sorting: Union['none', 'approx', 'exact'] = 'exact',
+            _async: bool = False,
             frozen: bool = False,
-            magnetThreshold: Union[Numeric,'onleave'] = 0,
+            magnetThreshold: Union[Numeric, 'onleave'] = 0,
             moveThreshold: Numeric = 0,
             clickThreshold: Numeric = 0,
             preventDefaultContextMenu: bool = False,
             preventDefaultBlankAction: bool = False,
             **kwargs
     ):
-        # self.options = parse_options(
-        #     width=self.width,
-        #     height=self.height,
-        #     background=self._background.get(),
-        #     grid=self._grid.get(),
-        #     **kwargs
-        # )
         self.background = background
         self.grid = grid
         self.setOpt(locals())
-        print(self.getOpt())
-        exit()
         super(Graph, self).__init__()
         self._name = 'Graph'
         self._env = ENV
         Figure().add_child(self)
-        self._background = background
-        self._grid = grid
-        self.width = _parse_size(width)
-        self.height = _parse_size(height)
+        # self._background = background
+        # self._grid = grid
+        # self.width = _parse_size(width)
+        # self.height = _parse_size(height)
         self.container = container
-
 
     def _repr_html_(self, **kwargs):
         """Displays the HTML Map in a Jupyter notebook."""
@@ -179,6 +169,7 @@ class Graph(MacroElement, BasicOpts):
         else:
             out = self._parent._repr_html_(**kwargs)
         return out
+
     #
     # def _to_png(self, delay=3):
     #     """Export the HTML to byte representation of a PNG image.
@@ -315,6 +306,67 @@ class Graph(MacroElement, BasicOpts):
     #     """
     #     for obj in args:
     #         self.objects_to_stay_in_front.append(obj)
+    def data(self):
+        data = """
+        {
+            "nodes": [
+                {
+                    "id": "node1",
+                    "x": 40,
+                    "y": 40,
+                    "width": 100,
+                    "height": 40,
+                    "attrs": {
+                        "body": {
+                            "fill": "#2ECC71",
+                            "stroke": "#000",
+                            "strokeDasharray": "10,2"
+                        },
+                        "label": {
+                            "text": "Hello",
+                            "fill": "#333",
+                            "fontSize": 13
+                        }
+                    }
+                },
+                {
+                    "id": "node2",
+                    "x": 180,
+                    "y": 240,
+                    "width": 100,
+                    "height": 40,
+                    "attrs": {
+                        "body": {
+                            "fill": "#F39C12",
+                            "stroke": "#000",
+                            "rx": 16,
+                            "ry": 16
+                        },
+                        "label": {
+                            "text": "World",
+                            "fill": "#333",
+                            "fontSize": 18,
+                            "fontWeight": "bold",
+                            "fontVariant": "small-caps"
+                        }
+                    }
+                }
+            ],
+            "edges": [
+                {
+                    "source": "node1",
+                    "target": "node2",
+                    "shape": "edge",
+                    "attrs": {
+                        "line": {
+                            "stroke": "orange"
+                        }
+                    }
+                }
+            ]
+        }
+        """
+        return data
 
 
 if __name__ == '__main__':
@@ -338,64 +390,6 @@ if __name__ == '__main__':
     # g.setGridSize(gridSize=11)
     # print(g.get())
     # print(g.getGridSize())
-    data = """
-    {
-        "nodes": [
-            {
-                "id": "node1",
-                "x": 40,
-                "y": 40,
-                "width": 100,
-                "height": 40,
-                "attrs": {
-                    "body": {
-                        "fill": "#2ECC71",
-                        "stroke": "#000",
-                        "strokeDasharray": "10,2"
-                    },
-                    "label": {
-                        "text": "Hello",
-                        "fill": "#333",
-                        "fontSize": 13
-                    }
-                }
-            },
-            {
-                "id": "node2",
-                "x": 180,
-                "y": 240,
-                "width": 100,
-                "height": 40,
-                "attrs": {
-                    "body": {
-                        "fill": "#F39C12",
-                        "stroke": "#000",
-                        "rx": 16,
-                        "ry": 16
-                    },
-                    "label": {
-                        "text": "World",
-                        "fill": "#333",
-                        "fontSize": 18,
-                        "fontWeight": "bold",
-                        "fontVariant": "small-caps"
-                    }
-                }
-            }
-        ],
-        "edges": [
-            {
-                "source": "node1",
-                "target": "node2",
-                "shape": "edge",
-                "attrs": {
-                    "line": {
-                        "stroke": "orange"
-                    }
-                }
-            }
-        ]
-    }
-    """
+
     g = Graph()
-    g.save("../test/g.html",graph_data=data)
+    g.save("../test/g.html")
